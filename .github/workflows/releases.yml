@@ -1,0 +1,41 @@
+name: Create Releases
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Install p7zip
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y p7zip-full
+
+    - name: Build package
+      run: make
+
+    - name: Generate SHA256 checksums
+      run: sha256sum dist/BookmarkTxt.keypirinha-package > dist/BookmarkTxt.keypirinha-package.sha256
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        files: |
+          dist/BookmarkTxt.keypirinha-package
