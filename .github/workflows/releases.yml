@@ -19,7 +19,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Install p7zip
       run: |
@@ -33,7 +33,7 @@ jobs:
       run: sha256sum dist/BookmarkTxt.keypirinha-package > dist/BookmarkTxt.keypirinha-package.sha256
 
     - name: Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
         name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
