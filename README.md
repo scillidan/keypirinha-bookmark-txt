@@ -1,13 +1,20 @@
+<div align="center">
+  <img src="assets/icon.png" alt="icon" width="32" />
+</div>
+
 # keypirinha-bookmark-txt
 
-Search bookmarks in plain text files, inspired by [bookmarks.txt](https://github.com/soulim/bookmarks.txt). Supports:
+Search bookmarks in plain text files, inspired by [bookmarks.txt](https://github.com/soulim/bookmarks.txt).
+
+Authors: GLM-5🧙‍♂️, scillidan🤡.
+
+## Features
 
 - Load contents from multiple directories and subdirectories
 - Using space between words helps filtering stuffs
 - Ignore custom files and dirs
-- Other features
-
-Authors: GLM-5🧙‍♂️, scillidan🤡.
+- Two search modes: keyword mode and direct mode
+- Other more
 
 ## Bookmark format
 
@@ -21,4 +28,12 @@ https://keypirinha.com/api.html Keypirinha - Extending Keypirinha (API)
 
 ## Usage
 
-Type `bkmt` → Tab → `<query1> <query2> ...`
+### Keyword Mode (default: `keyword_mode = true`)
+
+Type `bkm` → Tab → `<query1> <query2> ...`
+
+### Direct Mode (`keyword_mode = false`)
+
+Type directly: `<query1> <query2> ...`
+
+Items will be shown alongside other catalog items.
