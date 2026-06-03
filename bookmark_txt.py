@@ -17,6 +17,7 @@ class BookmarkTxt(kp.Plugin):
         super().__init__()
         self.bookmarks = []
         self.keyword = self.DEFAULT_KEYWORD
+        self.keyword_mode = True
         self.comment_prefix = self.DEFAULT_COMMENT_PREFIX
         self.max_desc_len = self.DEFAULT_MAX_DESC_LEN
         self._max_desc_len_raw = str(self.DEFAULT_MAX_DESC_LEN)
@@ -29,6 +30,8 @@ class BookmarkTxt(kp.Plugin):
         self._read_config()
         self._load_bookmarks()
         self.on_catalog()
+        icon_handle = self.load_icon("res://BookmarkTxt/assets/icon.ico")
+        self.set_default_icon(icon_handle)
 
     def on_stop(self):
         pass
@@ -43,6 +46,8 @@ class BookmarkTxt(kp.Plugin):
 
         self.keyword = settings.get_stripped(
             "keyword", "main", self.DEFAULT_KEYWORD).lower()
+
+        self.keyword_mode = settings.get_bool("keyword_mode", "main", True)
 
         self.comment_prefix = settings.get_stripped(
             "comment_prefix", "main", self.DEFAULT_COMMENT_PREFIX)
@@ -197,18 +202,35 @@ class BookmarkTxt(kp.Plugin):
         return all(term.lower() in searchable for term in search_terms)
 
     def on_catalog(self):
-        catalog = []
-        catalog.append(self.create_item(
-            category=kp.ItemCategory.KEYWORD,
-            label=self.keyword,
-            short_desc="Search bookmarks",
-            target=self.keyword,
-            args_hint=kp.ItemArgsHint.ACCEPTED,
-            hit_hint=kp.ItemHitHint.IGNORE
-        ))
+        if self.keyword_mode:
+            catalog = []
+            catalog.append(self.create_item(
+                category=kp.ItemCategory.KEYWORD,
+                label=self.keyword,
+                short_desc="Search bookmarks",
+                target=self.keyword,
+                args_hint=kp.ItemArgsHint.ACCEPTED,
+                hit_hint=kp.ItemHitHint.IGNORE
+            ))
+        else:
+            catalog = []
+            for bm in self.bookmarks:
+                display_title = self._truncate_title(bm['title'])
+                display_url = self._strip_protocol(bm['url'])
+                catalog.append(self.create_item(
+                    category=kp.ItemCategory.URL,
+                    label=display_title,
+                    short_desc=display_url,
+                    target=bm['url'],
+                    args_hint=kp.ItemArgsHint.FORBIDDEN,
+                    hit_hint=kp.ItemHitHint.KEEPALL
+                ))
         self.set_catalog(catalog)
 
     def on_suggest(self, user_input, items_chain):
+        if not self.keyword_mode:
+            return
+
         if not items_chain or items_chain[0].category() != kp.ItemCategory.KEYWORD:
             return
 
