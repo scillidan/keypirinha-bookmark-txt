@@ -12,6 +12,7 @@ class BookmarkTxt(kp.Plugin):
     DEFAULT_DIRECTORIES = []
     DEFAULT_PATTERNS = ["*.txt"]
     DEFAULT_IGNORE = []
+    ITEM_CAT_BOOKMARK = kp.ItemCategory.USER_BASE + 1
 
     def __init__(self):
         super().__init__()
@@ -25,13 +26,14 @@ class BookmarkTxt(kp.Plugin):
         self.patterns = self.DEFAULT_PATTERNS
         self.ignore = self.DEFAULT_IGNORE
         self.browser_args = ""
+        self._icon_handle = None
 
     def on_start(self):
         self._read_config()
         self._load_bookmarks()
+        self._icon_handle = self.load_icon("res://BookmarkTxt/assets/icon.ico")
+        self.set_default_icon(self._icon_handle)
         self.on_catalog()
-        icon_handle = self.load_icon("res://BookmarkTxt/assets/icon.ico")
-        self.set_default_icon(icon_handle)
 
     def on_stop(self):
         pass
@@ -39,6 +41,9 @@ class BookmarkTxt(kp.Plugin):
     def on_reload(self):
         self._read_config()
         self._load_bookmarks()
+        if not self._icon_handle:
+            self._icon_handle = self.load_icon("res://BookmarkTxt/assets/icon.ico")
+            self.set_default_icon(self._icon_handle)
         self.on_catalog()
 
     def _read_config(self):
@@ -210,7 +215,8 @@ class BookmarkTxt(kp.Plugin):
                 short_desc="Search bookmarks",
                 target=self.keyword,
                 args_hint=kp.ItemArgsHint.ACCEPTED,
-                hit_hint=kp.ItemHitHint.IGNORE
+                hit_hint=kp.ItemHitHint.IGNORE,
+                icon_handle=self._icon_handle
             ))
         else:
             catalog = []
@@ -218,12 +224,13 @@ class BookmarkTxt(kp.Plugin):
                 display_title = self._truncate_title(bm['title'])
                 display_url = self._strip_protocol(bm['url'])
                 catalog.append(self.create_item(
-                    category=kp.ItemCategory.URL,
+                    category=self.ITEM_CAT_BOOKMARK,
                     label=display_title,
                     short_desc=display_url,
                     target=bm['url'],
                     args_hint=kp.ItemArgsHint.FORBIDDEN,
-                    hit_hint=kp.ItemHitHint.KEEPALL
+                    hit_hint=kp.ItemHitHint.KEEPALL,
+                    icon_handle=self._icon_handle
                 ))
         self.set_catalog(catalog)
 
@@ -245,12 +252,13 @@ class BookmarkTxt(kp.Plugin):
                 display_url = self._strip_protocol(bm['url'])
 
                 suggestions.append(self.create_item(
-                    category=kp.ItemCategory.URL,
+                    category=self.ITEM_CAT_BOOKMARK,
                     label=display_title,
                     short_desc=display_url,
                     target=bm['url'],
                     args_hint=kp.ItemArgsHint.FORBIDDEN,
-                    hit_hint=kp.ItemHitHint.KEEPALL
+                    hit_hint=kp.ItemHitHint.KEEPALL,
+                    icon_handle=self._icon_handle
                 ))
 
         if suggestions:
@@ -262,7 +270,7 @@ class BookmarkTxt(kp.Plugin):
             )])
 
     def on_execute(self, item, action):
-        if item.category() == kp.ItemCategory.URL:
+        if item.category() == self.ITEM_CAT_BOOKMARK:
             url = item.target()
             self.dbg(f"Opening URL: {url}, browser: {self.browser_args}")
             if self.browser_args:
