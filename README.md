@@ -13,8 +13,8 @@ Authors: GLM-5🧙‍♂️, scillidan🤡.
 - Load contents from multiple directories and subdirectories
 - Using space between words helps filtering stuffs
 - Ignore custom files and dirs
-- Two search modes: keyword mode and direct mode
-- Other more
+- Three search modes: keyword, direct, all
+- Other features
 
 ## Bookmark format
 
