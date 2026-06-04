@@ -18,7 +18,7 @@ class BookmarkTxt(kp.Plugin):
         super().__init__()
         self.bookmarks = []
         self.keyword = self.DEFAULT_KEYWORD
-        self.keyword_mode = True
+        self.mode = "keyword"
         self.comment_prefix = self.DEFAULT_COMMENT_PREFIX
         self.max_desc_len = self.DEFAULT_MAX_DESC_LEN
         self._max_desc_len_raw = str(self.DEFAULT_MAX_DESC_LEN)
@@ -49,10 +49,12 @@ class BookmarkTxt(kp.Plugin):
     def _read_config(self):
         settings = self.load_settings()
 
+        self.mode = settings.get("mode", "main", "keyword").lower().strip()
+        if self.mode not in ("keyword", "direct", "full"):
+            self.mode = "keyword"
+
         self.keyword = settings.get_stripped(
             "keyword", "main", self.DEFAULT_KEYWORD).lower()
-
-        self.keyword_mode = settings.get_bool("keyword_mode", "main", True)
 
         self.comment_prefix = settings.get_stripped(
             "comment_prefix", "main", self.DEFAULT_COMMENT_PREFIX)
@@ -66,24 +68,24 @@ class BookmarkTxt(kp.Plugin):
         directories_raw = settings.get("directories", "main", "")
         if isinstance(directories_raw, str):
             self.directories = [
-                x.strip().rstrip(";") 
-                for x in directories_raw.replace("\n", ";").split(";") 
+                x.strip().rstrip(";")
+                for x in directories_raw.replace("\n", ";").split(";")
                 if x.strip()
             ]
 
         patterns_raw = settings.get_stripped("patterns", "main", "")
         if isinstance(patterns_raw, str):
             self.patterns = [
-                x.strip() 
-                for x in patterns_raw.replace(";", ",").split(",") 
+                x.strip()
+                for x in patterns_raw.replace(";", ",").split(",")
                 if x.strip()
             ] or self.DEFAULT_PATTERNS
 
         ignore_raw = settings.get("ignore", "main", "")
         if isinstance(ignore_raw, str):
             self.ignore = [
-                x.strip() 
-                for x in ignore_raw.replace("\n", ";").split(";") 
+                x.strip()
+                for x in ignore_raw.replace("\n", ";").split(";")
                 if x.strip()
             ]
 
@@ -207,8 +209,9 @@ class BookmarkTxt(kp.Plugin):
         return all(term.lower() in searchable for term in search_terms)
 
     def on_catalog(self):
-        if self.keyword_mode:
-            catalog = []
+        catalog = []
+
+        if self.mode in ("keyword", "full"):
             catalog.append(self.create_item(
                 category=kp.ItemCategory.KEYWORD,
                 label=self.keyword,
@@ -218,8 +221,8 @@ class BookmarkTxt(kp.Plugin):
                 hit_hint=kp.ItemHitHint.IGNORE,
                 icon_handle=self._icon_handle
             ))
-        else:
-            catalog = []
+
+        if self.mode in ("direct", "full"):
             for bm in self.bookmarks:
                 display_title = self._truncate_title(bm['title'])
                 display_url = self._strip_protocol(bm['url'])
@@ -232,10 +235,11 @@ class BookmarkTxt(kp.Plugin):
                     hit_hint=kp.ItemHitHint.KEEPALL,
                     icon_handle=self._icon_handle
                 ))
+
         self.set_catalog(catalog)
 
     def on_suggest(self, user_input, items_chain):
-        if not self.keyword_mode:
+        if self.mode == "direct":
             return
 
         if not items_chain or items_chain[0].category() != kp.ItemCategory.KEYWORD:
