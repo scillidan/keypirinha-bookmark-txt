@@ -6,9 +6,9 @@
 
 Search bookmarks in plain text files, inspired by [bookmarks.txt](https://github.com/soulim/bookmarks.txt).
 
-Authors: GLM-5🧙‍♂️, scillidan🤡.
+Authors: GLM-5🧙‍♂️, scillidan🤡
 
-The icon is from [Input Prompts](https://www.kenney.nl/assets/input-prompts) by [Kenney](https://www.kenney.nl)
+The icon is from [Input Prompts](https://www.kenney.nl/assets/input-prompts) by [Kenney](https://www.kenney.nl).
 
 ## Features
 
