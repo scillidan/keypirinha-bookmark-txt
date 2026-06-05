@@ -8,6 +8,8 @@ Search bookmarks in plain text files, inspired by [bookmarks.txt](https://github
 
 Authors: GLM-5🧙‍♂️, scillidan🤡.
 
+The icon is from [Input Prompts](https://www.kenney.nl/assets/input-prompts) by [Kenney](https://www.kenney.nl)
+
 ## Features
 
 - Load contents from multiple directories and subdirectories
