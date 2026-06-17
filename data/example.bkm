@@ -1,0 +1,11 @@
+# To quickly test:
+#   1. Copy this file to a local path (e.g. ~/bookmarks/example.bkm)
+#   2. Edit bookmarktxt.ini:  files = /path/to/example.bkm
+#   3. Reload Keypirinha config
+
+https://github.com
+https://keypirinha.com               Keypirinha
+https://keypirinha.com/keyboard.html Keypirinha - keymap
+https://keypirinha.com/api.html      Keypirinha \- Extending Keypirinha (API)
+https://richardosgood.com/posts/banned-book-library/ Banned Book Library - blog
+file:///C:/Users/README.txt          Local readme

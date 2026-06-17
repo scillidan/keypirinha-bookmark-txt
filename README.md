@@ -4,7 +4,7 @@
 
 # keypirinha-bookmark-txt
 
-Search bookmarks in plain text files, inspired by [bookmarks.txt](https://github.com/soulim/bookmarks.txt).
+Search bookmarks stored in plain text files. Compatible with [qutebrowser](https://www.qutebrowser.org/)'s bookmark format, extended with optional `- tag1,tag2` tags and `\-` escaping (see `data/example.bkm`).
 
 Authors: GLM-5🧙‍♂️, scillidan🤡
 
@@ -12,30 +12,10 @@ The icon is from [Input Prompts](https://www.kenney.nl/assets/input-prompts) by 
 
 ## Features
 
-- Load contents from multiple directories and subdirectories
-- Using space between words helps filtering stuffs
-- Ignore custom files and dirs
-- Three search modes: keyword, direct, all
-- Other features
+- Fuzzy search via `bkm <query>` (AND logic across raw lines, tags included)
+- Per-scheme open commands (`[scheme/https] cmd = brave`)
+- `file://` URI support (opens with system default app)
+- Multi-directory recursive scan with include/exclude globs
+- Experimental auto-sort on file change
 
-## Bookmark format
-
-```
-## https://github.com/soulim/bookmarks.txt/blob/main/bookmarks.txt
-https://github.com
-https://keypirinha.com          Keypirinha
-https://keypirinha.com/api.html Keypirinha - Extending Keypirinha (API)
-...
-```
-
-## Usage
-
-### Keyword Mode (default: `keyword_mode = true`)
-
-Type `bkm` → Tab → `<query1> <query2> ...`
-
-### Direct Mode (`keyword_mode = false`)
-
-Type directly: `<query1> <query2> ...`
-
-Items will be shown alongside other catalog items.
+See `bookmarktxt.ini` for full usage details.

@@ -1,7 +1,7 @@
 PACKAGE_NAME = BookmarkTxt
 VERSION = 0.0.2
 DIST_DIR = dist
-FILES = bookmark_txt.py bookmarktxt.ini README.md LICENSE assets/icon.ico
+FILES = bookmarktxt.py bookmarktxt.ini README.md LICENSE assets/icon.ico
 
 .PHONY: all clean dist
 
