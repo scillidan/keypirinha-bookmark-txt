@@ -6,7 +6,7 @@
 
 Search bookmarks stored in plain text files. Compatible with [qutebrowser](https://www.qutebrowser.org/)'s bookmark format, extended with optional `- tag1,tag2` tags and `\-` escaping (see `data/example.bkm`).
 
-Authors: GLM-5🧙‍♂️, scillidan🤡
+Authors: GLM-5.1🧙‍♂️, scillidan🤡
 
 The icon is from [Input Prompts](https://www.kenney.nl/assets/input-prompts) by [Kenney](https://www.kenney.nl).
 
