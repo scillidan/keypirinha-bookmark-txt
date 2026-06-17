@@ -5,6 +5,7 @@ import re
 import fnmatch
 import ctypes
 import shlex
+import subprocess
 
 class BookmarkTxt(kp.Plugin):
     DEFAULT_KEYWORD = "bkm"
@@ -12,6 +13,7 @@ class BookmarkTxt(kp.Plugin):
     DEFAULT_MAX_DESC_LEN = "20%"
     DEFAULT_INCLUDE = ["*.txt", "*.bkm"]
     ITEM_CAT_BOOKMARK = kp.ItemCategory.USER_BASE + 1
+    ITEM_CAT_FORMAT = kp.ItemCategory.USER_BASE + 2
 
     def __init__(self):
         super().__init__()
@@ -26,10 +28,11 @@ class BookmarkTxt(kp.Plugin):
         self._exclude = []
         self._default_cmd = ""
         self._scheme_cmds = {}
-        self._auto_sort = False
-        self._sort_order = "alpha_asc"
-        self._sort_include = []
-        self._sort_exclude = []
+        self._format_order = "alpha_asc"
+        self._format_include = []
+        self._format_exclude = []
+        self._notify = True
+        self._omit_scheme = True
         self._loaded_files = {}
         self._icon_handle = None
 
@@ -38,6 +41,7 @@ class BookmarkTxt(kp.Plugin):
         self._load_bookmarks()
         self._icon_handle = self.load_icon("res://BookmarkTxt/assets/icon.ico")
         self.set_default_icon(self._icon_handle)
+        self._set_catalog()
 
     def on_stop(self):
         pass
@@ -48,14 +52,28 @@ class BookmarkTxt(kp.Plugin):
         if not self._icon_handle:
             self._icon_handle = self.load_icon("res://BookmarkTxt/assets/icon.ico")
             self.set_default_icon(self._icon_handle)
+        self._set_catalog()
 
     def on_events(self, flags):
         if flags & kp.Events.PACKCONFIG:
-            self.on_reload()
+            self._read_config()
+            self._format_all_files()
+            self._load_bookmarks()
+            self._set_catalog()
 
-    def on_activated(self):
-        if self._auto_sort:
-            self._check_and_sort()
+    def on_catalog(self):
+        self._set_catalog()
+
+    def _set_catalog(self):
+        self.set_catalog([self.create_item(
+            category=self.ITEM_CAT_FORMAT,
+            label="Format Bookmarks",
+            short_desc="Sort bookmarks",
+            target="format",
+            args_hint=kp.ItemArgsHint.FORBIDDEN,
+            hit_hint=kp.ItemHitHint.KEEPALL,
+            icon_handle=self._icon_handle
+        )])
 
     def _semicolons(self, raw):
         if not isinstance(raw, str):
@@ -72,7 +90,6 @@ class BookmarkTxt(kp.Plugin):
             "comment_prefix", "main", self.DEFAULT_COMMENT_PREFIX)
 
         self._max_desc_len = settings.get_int("max_desc_len", "main", 0)
-
         self._max_desc_len_raw = settings.get_stripped(
             "max_desc_len", "main", str(self.DEFAULT_MAX_DESC_LEN))
 
@@ -100,10 +117,11 @@ class BookmarkTxt(kp.Plugin):
                 if cmd:
                     self._scheme_cmds[scheme] = cmd
 
-        self._auto_sort = settings.get_bool("auto_sort", "experimental", False)
-        self._sort_order = settings.get_stripped("sort_order", "experimental", "alpha_desc").lower()
-        self._sort_include = self._semicolons(settings.get("sort_include", "experimental", ""))
-        self._sort_exclude = self._semicolons(settings.get("sort_exclude", "experimental", ""))
+        self._format_order = settings.get_stripped("format_order", "format", "alpha_asc").lower()
+        self._format_include = self._semicolons(settings.get("format_include", "format", ""))
+        self._format_exclude = self._semicolons(settings.get("format_exclude", "format", ""))
+        self._notify = settings.get_bool("notify", "main", True)
+        self._omit_scheme = settings.get_bool("omit_scheme", "main", True)
 
     def _fnmatch_exclude(self, filepath, patterns):
         if not patterns:
@@ -133,14 +151,14 @@ class BookmarkTxt(kp.Plugin):
         fl = filename.lower()
         return any(fnmatch.fnmatch(fl, p.lower()) for p in self._include)
 
-    def _is_sort_excluded(self, filepath):
-        return self._fnmatch_exclude(filepath, self._sort_exclude)
+    def _is_format_excluded(self, filepath):
+        return self._fnmatch_exclude(filepath, self._format_exclude)
 
-    def _is_sort_included(self, filepath):
-        if not self._sort_include:
+    def _is_format_included(self, filepath):
+        if not self._format_include:
             return True
         fl = os.path.basename(filepath).lower()
-        return any(fnmatch.fnmatch(fl, p.lower()) for p in self._sort_include)
+        return any(fnmatch.fnmatch(fl, p.lower()) for p in self._format_include)
 
     def _load_bookmarks(self):
         self._bookmarks = []
@@ -148,17 +166,16 @@ class BookmarkTxt(kp.Plugin):
         seen = set()
 
         for fpath in self._files:
-            expanded = os.path.expandvars(os.path.expanduser(fpath))
-            norm = os.path.normpath(expanded).lower()
+            norm = os.path.normpath(fpath).lower()
             if norm in seen:
                 continue
             seen.add(norm)
-            if os.path.isfile(expanded):
+            if os.path.isfile(fpath):
                 try:
-                    self._loaded_files[expanded] = os.path.getmtime(expanded)
+                    self._loaded_files[fpath] = os.path.getmtime(fpath)
                 except OSError:
                     pass
-                self._parse_file(expanded)
+                self._parse_file(fpath)
 
         for dir_path in self._directories:
             if not os.path.isdir(dir_path):
@@ -181,20 +198,22 @@ class BookmarkTxt(kp.Plugin):
                     self._parse_file(filepath)
 
     def _parse_line(self, line):
-        m = re.match(r'^(\w+://\S+)', line)
+        m = re.search(r'(\w+://\S+)', line)
         if not m:
             return None
         url = m.group(1)
-        rest = line[m.end():].strip()
+        before = line[:m.start()].strip()
+        after = line[m.end():]
         tags = []
-        title = rest
-        sep = rest.rfind(' - ')
+        title_after = after.strip()
+        sep = after.rfind(' - ')
         if sep >= 0:
-            after = rest[sep + 3:].strip()
-            if after and re.match(r'^[^,\s]+(,[^,\s]+)*$', after):
-                title = rest[:sep].strip()
-                tags = [t.strip() for t in after.split(',') if t.strip()]
-        title = title.replace('\\-', '-')
+            after_tag = after[sep + 3:].strip()
+            if after_tag and re.match(r'^[^,\s]+(,[^,\s]+)*$', after_tag):
+                title_after = after[:sep].strip()
+                tags = [t.strip() for t in after_tag.split(',') if t.strip()]
+        parts = [p for p in (before, title_after) if p]
+        title = ' '.join(parts).replace('\\-', '-')
         if not title:
             title = re.sub(r'^\w+://', '', url)
         return {'url': url, 'text': title, 'tags': tags, 'raw': line}
@@ -222,67 +241,109 @@ class BookmarkTxt(kp.Plugin):
             parsed['url'].lower()
         )
 
-    def _check_and_sort(self):
-        changed = False
-        for filepath in list(self._loaded_files.keys()):
-            try:
-                current_mtime = os.path.getmtime(filepath)
-            except OSError:
-                continue
-            if current_mtime == self._loaded_files[filepath]:
-                continue
-            if self._is_sort_included(filepath) and not self._is_sort_excluded(filepath):
-                if self._sort_bookmark_file(filepath):
-                    changed = True
-            try:
-                self._loaded_files[filepath] = os.path.getmtime(filepath)
-            except OSError:
-                pass
-        if changed:
-            self._load_bookmarks()
+    def _show_notification(self, title, message):
+        if not self._notify:
+            return
+        try:
+            t = title.replace("'", "''")
+            m = message.replace("'", "''")
+            ps = (
+                "Add-Type -AssemblyName System.Windows.Forms;"
+                f"$n=New-Object System.Windows.Forms.NotifyIcon;"
+                "$n.Icon=[System.Drawing.SystemIcons]::Information;"
+                "$n.Visible=$true;"
+                f"$n.ShowBalloonTip(3000,'{t}','{m}','Info');"
+                "Start-Sleep 4;$n.Dispose()"
+            )
+            subprocess.Popen(
+                ["powershell", "-NoProfile", "-NonInteractive",
+                 "-WindowStyle", "Hidden", "-Command", ps],
+                creationflags=0x08000000)
+        except Exception:
+            self.info(f"[{title}] {message}")
 
-    def _sort_bookmark_file(self, filepath):
+    def _format_all_files(self):
+        formatted = []
+        for filepath in list(self._loaded_files.keys()):
+            if not self._is_format_included(filepath) or self._is_format_excluded(filepath):
+                continue
+            result = self._format_bookmark_file(filepath)
+            if result == "formatted":
+                formatted.append(filepath)
+            elif result == "error":
+                self._show_notification("BookmarkTxt", f"Format error: {os.path.basename(filepath)}")
+        if formatted:
+            names = ", ".join(os.path.basename(f) for f in formatted)
+            self._show_notification("BookmarkTxt", f"Formatted: {names}")
+
+    def _format_bookmark_file(self, filepath):
         try:
             with open(filepath, 'r', encoding='utf-8') as fh:
                 raw = fh.read()
         except Exception as e:
-            self.err(f"Failed to read {filepath} for sorting: {e}")
-            return False
+            self.err(f"Failed to read {filepath} for formatting: {e}")
+            return "error"
 
-        lines = raw.split('\n')
+        lines = raw.splitlines()
 
         comments = []
-        bm_entries = []
+        url_entries = []
+        other_lines = []
+
         for line in lines:
             stripped = line.strip()
             if not stripped:
                 continue
             if stripped.startswith(self._comment_prefix):
                 comments.append(stripped)
-            elif re.match(r'^\w+://\S+', stripped):
-                key = self._extract_sort_key(stripped)
-                bm_entries.append((key, stripped))
+                continue
+            m = re.search(r'(\w+://\S+)', stripped)
+            if m:
+                url = m.group(1)
+                before = stripped[:m.start()].strip()
+                rest = stripped[m.end():]
+                formatted_line = url + ('  ' + before if before else '') + rest
+                key = self._extract_sort_key(formatted_line)
+                url_entries.append((key, formatted_line))
+            else:
+                other_lines.append(stripped)
 
-        if not bm_entries:
-            return False
+        if not url_entries and not other_lines:
+            return "skipped"
 
-        reverse = self._sort_order.endswith('_desc')
-        bm_entries.sort(key=lambda x: x[0], reverse=reverse)
+        reverse = self._format_order.endswith('_desc')
+        url_entries.sort(key=lambda x: x[0], reverse=reverse)
         comments.sort(reverse=reverse)
 
-        sorted_lines = comments + [entry[1] for entry in bm_entries]
+        sorted_lines = [l for l in (comments + [e[1] for e in url_entries] + other_lines) if l.strip()]
         new_content = '\n'.join(sorted_lines) + '\n'
 
         if new_content == raw:
-            return False
+            return "skipped"
+
+        backup = filepath + ".bak"
+        try:
+            with open(backup, 'w', encoding='utf-8') as fh:
+                fh.write(raw)
+        except Exception:
+            pass
 
         try:
             with open(filepath, 'w', encoding='utf-8') as fh:
                 fh.write(new_content)
-            return True
         except Exception as e:
-            self.err(f"Failed to write {filepath} after sorting: {e}")
-            return False
+            self.err(f"Failed to write {filepath}: {e}")
+            try:
+                with open(backup, 'r', encoding='utf-8') as bf:
+                    original = bf.read()
+                with open(filepath, 'w', encoding='utf-8') as fh:
+                    fh.write(original)
+                self.err(f"Restored {filepath} from backup")
+            except Exception:
+                self.err(f"CRITICAL: Failed to restore {filepath}!")
+            return "error"
+
+        return "formatted"
 
     def _calc_max_desc_len(self):
         raw = self._max_desc_len_raw.strip()
@@ -304,10 +365,16 @@ class BookmarkTxt(kp.Plugin):
         return text[:ml - 3] + "..."
 
     def _make_item(self, bm):
+        if self._omit_scheme:
+            desc = re.sub(r'^https?://', '', bm['url'])
+        else:
+            desc = bm['url']
+        if bm['tags']:
+            desc += ' (' + ', '.join(bm['tags']) + ')'
         return self.create_item(
             category=self.ITEM_CAT_BOOKMARK,
-            label=self._truncate(bm['text']),
-            short_desc=re.sub(r'^\w+://', '', bm['url']),
+            label=bm['text'],
+            short_desc=desc,
             target=bm['url'],
             args_hint=kp.ItemArgsHint.FORBIDDEN,
             hit_hint=kp.ItemHitHint.KEEPALL,
@@ -331,12 +398,16 @@ class BookmarkTxt(kp.Plugin):
 
         args = text[len(self._keyword):].strip()
         if not args:
+            items = [self._make_item(bm) for bm in self._bookmarks]
+            if items:
+                self.set_suggestions(items, kp.Match.ANY, kp.Sort.LABEL_ASC)
             return
 
         words = [w.lower() for w in args.split() if w]
         suggestions = []
         for bm in self._bookmarks:
-            if all(w in bm['raw'].lower() for w in words):
+            searchable = ' '.join([bm['raw'], ' '.join(bm['tags'])]).lower()
+            if all(w in searchable for w in words):
                 suggestions.append(self._make_item(bm))
 
         if suggestions:
@@ -360,6 +431,9 @@ class BookmarkTxt(kp.Plugin):
         kpu.shell_execute(prog, args)
 
     def on_execute(self, item, action):
+        if item.category() == self.ITEM_CAT_FORMAT:
+            self._format_all_files()
+            return
         if item.category() != self.ITEM_CAT_BOOKMARK:
             return
         url = item.target()
