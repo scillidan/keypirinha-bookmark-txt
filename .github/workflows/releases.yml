@@ -11,15 +11,18 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v6
+      with:
+        persist-credentials: false
 
     - name: Install p7zip
       run: |
@@ -33,9 +36,11 @@ jobs:
       run: sha256sum dist/BookmarkTxt.keypirinha-package > dist/BookmarkTxt.keypirinha-package.sha256
 
     - name: Release
-      uses: softprops/action-gh-release@v3
-      with:
-        tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
-        name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
-        files: |
-          dist/BookmarkTxt.keypirinha-package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}" \
+            dist/BookmarkTxt.keypirinha-package \
+            dist/BookmarkTxt.keypirinha-package.sha256 \
+            --title "${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}" \
+            --generate-notes
