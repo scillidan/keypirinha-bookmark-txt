@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/icon.png" alt="icon" width="32" />
+  <img src="assets/keypirinha-bookmark-txt.png" alt="keypirinha-bookmark-txt" width="600" />
 </div>
 
 # keypirinha-bookmark-txt
